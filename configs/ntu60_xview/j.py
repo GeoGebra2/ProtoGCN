@@ -1,6 +1,6 @@
 modality = 'j'
 graph = 'nturgb+d'
-work_dir = f'./work_dirs/ntu60_xview/j'
+work_dir = f'./work_dirs/ntu60_xview_personid/j'
 
 model = dict(
     type='RecognizerGCN',
@@ -9,10 +9,10 @@ model = dict(
         num_prototype=400,
         tcn_ms_cfg=[(3, 1), (3, 2), (3, 3), (3, 4), ('max', 3), '1x1'],
         graph_cfg=dict(layout=graph, mode='random', num_filter=8, init_off=.04, init_std=.02)),
-    cls_head=dict(type='SimpleHead', joint_cfg='nturgb+d', num_classes=60, in_channels=384, weight=0.2))
+    cls_head=dict(type='SimpleHead', joint_cfg='nturgb+d', num_classes=40, in_channels=384, weight=0.2))
 
 dataset_type = 'PoseDataset'
-ann_file = '/data/nturgbd/ntu60_3danno.pkl'
+ann_file = './ntu60_3danno.pkl'
 train_pipeline = [
     dict(type='PreNormalize3D', align_spine=False),
     dict(type='RandomRot', theta=0.2),

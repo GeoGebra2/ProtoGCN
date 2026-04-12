@@ -1,5 +1,6 @@
 import mmcv
 import os.path as osp
+import re
 
 from ..utils import get_root_logger
 from .base import BaseDataset
@@ -95,6 +96,11 @@ class PoseDataset(BaseDataset):
             data = [x for x in data if x[identifier] in split]
            
         for item in data:
+            identifier = item.get('frame_dir', item.get('filename', ''))
+            identifier = osp.basename(identifier.rstrip('/\\'))
+            subject_match = re.search(r'P(\d{3})', identifier)
+            if subject_match is not None:
+                item['label'] = int(subject_match.group(1)) - 1
             if 'filename' in item:
                 item['filename'] = osp.join(self.data_prefix, item['filename'])
             if 'frame_dir' in item:
