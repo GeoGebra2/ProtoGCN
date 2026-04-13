@@ -48,11 +48,13 @@ class PoseDataset(BaseDataset):
                  valid_ratio=None,
                  box_thr=None,
                  class_prob=None,
+                 relabel_by_subject=True,
                  memcached=False,
                  mc_cfg=('localhost', 22077),
                  **kwargs):
         modality = 'Pose'
         self.split = split
+        self.relabel_by_subject = relabel_by_subject
 
         super().__init__(
             ann_file, pipeline, start_index=0, modality=modality, memcached=memcached, mc_cfg=mc_cfg, **kwargs)
@@ -99,7 +101,7 @@ class PoseDataset(BaseDataset):
             identifier = item.get('frame_dir', item.get('filename', ''))
             identifier = osp.basename(identifier.rstrip('/\\'))
             subject_match = re.search(r'P(\d{3})', identifier)
-            if subject_match is not None:
+            if self.relabel_by_subject and subject_match is not None:
                 item['label'] = int(subject_match.group(1)) - 1
             if 'filename' in item:
                 item['filename'] = osp.join(self.data_prefix, item['filename'])
