@@ -1,6 +1,6 @@
 modality = 'j'
 graph = 'nturgb+d'
-work_dir = f'./work_dirs/ntu60_xview_personid/j'
+work_dir = f'./work_dirs/ntu60_xview_personid/j_fresh'
 
 model = dict(
     type='RecognizerGCN',
@@ -12,7 +12,7 @@ model = dict(
     cls_head=dict(type='SimpleHead', joint_cfg='nturgb+d', num_classes=40, in_channels=384, weight=0.2))
 
 dataset_type = 'PoseDataset'
-ann_file = './ntu60_3danno.pkl'
+ann_file = './ntu-single-A1-40.pkl'
 train_pipeline = [
     dict(type='PreNormalize3D', align_spine=False),
     dict(type='RandomRot', theta=0.2),
@@ -54,3 +54,6 @@ total_epochs = 150
 checkpoint_config = dict(interval=1)
 evaluation = dict(interval=1, metrics=['top_k_accuracy'])
 log_config = dict(interval=100, hooks=[dict(type='TextLoggerHook')])
+auto_resume = False
+resume_from = None
+load_from = None

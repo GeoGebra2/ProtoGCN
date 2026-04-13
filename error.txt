@@ -1,0 +1,94 @@
+2026-04-13 10:10:55,851 - protogcn - INFO - workflow: [('train', 1)], max: 150 epochs
+2026-04-13 10:10:55,851 - protogcn - INFO - Checkpoints will be saved to /home/chenzhuoyan/ProtoGCN/work_dirs/ntu60_xview_personid/j by HardDiskBackend.
+/opt/conda/conda-bld/pytorch_1646755953518/work/aten/src/ATen/native/cuda/Loss.cu:257: nll_loss_forward_reduce_cuda_kernel_2d: block: [0,0,0], thread: [4,0,0] Assertion `t >= 0 && t < n_classes` failed.
+/opt/conda/conda-bld/pytorch_1646755953518/work/aten/src/ATen/native/cuda/Loss.cu:257: nll_loss_forward_reduce_cuda_kernel_2d: block: [0,0,0], thread: [7,0,0] Assertion `t >= 0 && t < n_classes` failed.
+/opt/conda/conda-bld/pytorch_1646755953518/work/aten/src/ATen/native/cuda/Loss.cu:257: nll_loss_forward_reduce_cuda_kernel_2d: block: [0,0,0], thread: [9,0,0] Assertion `t >= 0 && t < n_classes` failed.
+/opt/conda/conda-bld/pytorch_1646755953518/work/aten/src/ATen/native/cuda/Loss.cu:257: nll_loss_forward_reduce_cuda_kernel_2d: block: [0,0,0], thread: [12,0,0] Assertion `t >= 0 && t < n_classes` failed.
+/opt/conda/conda-bld/pytorch_1646755953518/work/aten/src/ATen/native/cuda/Loss.cu:257: nll_loss_forward_reduce_cuda_kernel_2d: block: [0,0,0], thread: [14,0,0] Assertion `t >= 0 && t < n_classes` failed.
+Traceback (most recent call last):
+  File "tools/train.py", line 159, in <module>
+    main()
+  File "tools/train.py", line 151, in main
+    train_model(model, datasets, cfg, validate=args.validate, test=test_option, timestamp=timestamp, meta=meta)
+  File "/home/chenzhuoyan/ProtoGCN/protogcn/apis/train.py", line 141, in train_model
+    runner.run(data_loaders, cfg.workflow, cfg.total_epochs)
+  File "/home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/mmcv/runner/epoch_based_runner.py", line 127, in run
+    epoch_runner(data_loaders[i], **kwargs)
+  File "/home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/mmcv/runner/epoch_based_runner.py", line 50, in train
+    self.run_iter(data_batch, train_mode=True, **kwargs)
+  File "/home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/mmcv/runner/epoch_based_runner.py", line 30, in run_iter
+    **kwargs)
+  File "/home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/mmcv/parallel/distributed.py", line 59, in train_step
+    output = self.module.train_step(*inputs[0], **kwargs[0])
+  File "/home/chenzhuoyan/ProtoGCN/protogcn/models/recognizers/base.py", line 183, in train_step
+    losses = self(**data_batch, return_loss=True)
+  File "/home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/torch/nn/modules/module.py", line 1110, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/chenzhuoyan/ProtoGCN/protogcn/models/recognizers/recognizergcn.py", line 82, in forward
+    return self.forward_train(keypoint, label, **kwargs)
+  File "/home/chenzhuoyan/ProtoGCN/protogcn/models/recognizers/recognizergcn.py", line 22, in forward_train
+    loss = self.cls_head.loss(cls_score, get_graph, gt_label)
+  File "/home/chenzhuoyan/ProtoGCN/protogcn/models/heads/base.py", line 71, in loss
+    loss_cls_2 = self.csc_loss(get_graph, label.detach(), cls_score.detach())
+  File "/home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/torch/nn/modules/module.py", line 1110, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/chenzhuoyan/ProtoGCN/protogcn/models/losses/Class_Specific_Contrastive_Loss.py", line 93, in forward
+    pred_one = self.onehot(pred)
+  File "/home/chenzhuoyan/ProtoGCN/protogcn/models/losses/Class_Specific_Contrastive_Loss.py", line 32, in onehot
+    ones = torch.sparse.torch.eye(self.n_class).to(label.device)
+RuntimeError: CUDA error: device-side assert triggered
+CUDA kernel errors might be asynchronously reported at some other API call,so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1.
+terminate called after throwing an instance of 'c10::CUDAError'
+  what():  CUDA error: device-side assert triggered
+CUDA kernel errors might be asynchronously reported at some other API call,so the stacktrace below might be incorrect.
+For debugging consider passing CUDA_LAUNCH_BLOCKING=1.
+Exception raised from create_event_internal at /opt/conda/conda-bld/pytorch_1646755953518/work/c10/cuda/CUDACachingAllocator.cpp:1230 (most recent call first):
+frame #0: c10::Error::Error(c10::SourceLocation, std::string) + 0x4d (0x71da1c63e1bd in /home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/torch/lib/libc10.so)
+frame #1: <unknown function> + 0x1f037 (0x71da4f21f037 in /home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/torch/lib/libc10_cuda.so)
+frame #2: c10::cuda::CUDACachingAllocator::raw_delete(void*) + 0x23a (0x71da4f2233ea in /home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/torch/lib/libc10_cuda.so)
+frame #3: <unknown function> + 0x2edb28 (0x71daa10edb28 in /home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/torch/lib/libtorch_python.so)
+frame #4: c10::TensorImpl::release_resources() + 0x175 (0x71da1c624fb5 in /home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/torch/lib/libc10.so)
+frame #5: <unknown function> + 0x1daac9 (0x71daa0fdaac9 in /home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/torch/lib/libtorch_python.so)
+frame #6: <unknown function> + 0x4cf74c (0x71daa12cf74c in /home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/torch/lib/libtorch_python.so)
+frame #7: THPVariable_subclass_dealloc(_object*) + 0x299 (0x71daa12cfa69 in /home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/torch/lib/libtorch_python.so)
+frame #8: <unknown function> + 0xfbfa9 (0x5b2c7c50ffa9 in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #9: <unknown function> + 0xfa8c8 (0x5b2c7c50e8c8 in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #10: <unknown function> + 0xfa8c8 (0x5b2c7c50e8c8 in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #11: <unknown function> + 0xfa2d8 (0x5b2c7c50e2d8 in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #12: <unknown function> + 0xfad68 (0x5b2c7c50ed68 in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #13: <unknown function> + 0xfad7c (0x5b2c7c50ed7c in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #14: <unknown function> + 0xfad7c (0x5b2c7c50ed7c in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #15: <unknown function> + 0xfad7c (0x5b2c7c50ed7c in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #16: <unknown function> + 0xfad7c (0x5b2c7c50ed7c in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #17: <unknown function> + 0xfad7c (0x5b2c7c50ed7c in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #18: <unknown function> + 0xfad7c (0x5b2c7c50ed7c in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #19: <unknown function> + 0x12b327 (0x5b2c7c53f327 in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #20: PyDict_SetItemString + 0x89 (0x5b2c7c54be59 in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #21: PyImport_Cleanup + 0xab (0x5b2c7c5c0d0b in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #22: Py_FinalizeEx + 0x64 (0x5b2c7c635304 in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #23: <unknown function> + 0x232960 (0x5b2c7c646960 in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #24: _Py_UnixMain + 0x3c (0x5b2c7c646ccc in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+frame #25: <unknown function> + 0x2a1ca (0x71dae102a1ca in /lib/x86_64-linux-gnu/libc.so.6)
+frame #26: __libc_start_main + 0x8b (0x71dae102a28b in /lib/x86_64-linux-gnu/libc.so.6)
+frame #27: <unknown function> + 0x1d7555 (0x5b2c7c5eb555 in /home/chenzhuoyan/.conda/envs/protogcn/bin/python)
+
+ERROR:torch.distributed.elastic.multiprocessing.api:failed (exitcode: -6) local_rank: 0 (pid: 1124147) of binary: /home/chenzhuoyan/.conda/envs/protogcn/bin/python
+Traceback (most recent call last):
+  File "/home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/runpy.py", line 193, in _run_module_as_main
+    "__main__", mod_spec)
+  File "/home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/runpy.py", line 85, in _run_code
+    exec(code, run_globals)
+  File "/home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/torch/distributed/launch.py", line 193, in <module>
+    main()
+  File "/home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/torch/distributed/launch.py", line 189, in main
+    launch(args)
+  File "/home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/torch/distributed/launch.py", line 174, in launch
+    run(args)
+  File "/home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/torch/distributed/run.py", line 718, in run
+    )(*cmd_args)
+  File "/home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/torch/distributed/launcher/api.py", line 131, in __call__
+    return launch_agent(self._config, self._entrypoint, list(args))
+  File "/home/chenzhuoyan/.conda/envs/protogcn/lib/python3.7/site-packages/torch/distributed/launcher/api.py", line 247, in launch_agent
+    failures=result.failures,
+torch.distributed.elastic.multiprocessing.errors.ChildFailedError:
