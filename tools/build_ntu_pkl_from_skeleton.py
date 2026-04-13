@@ -33,6 +33,7 @@ def parse_args():
     parser.add_argument('--num-person', type=int, default=2)
     parser.add_argument('--ext', default='.skeleton')
     parser.add_argument('--skip-bad-files', action='store_true')
+    parser.add_argument('--pickle-protocol', type=int, default=4)
     return parser.parse_args()
 
 
@@ -193,7 +194,7 @@ def main():
     output_path = Path(args.output_pkl)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, 'wb') as f:
-        pickle.dump(output, f, protocol=pickle.HIGHEST_PROTOCOL)
+        pickle.dump(output, f, protocol=args.pickle_protocol)
 
     print(f'samples: {len(annotations)}')
     print(f'split keys: {list(split.keys())}')

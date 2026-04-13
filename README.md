@@ -86,3 +86,7 @@ If you find ProtoGCN useful in your research, please consider citing our paper:
 ## Contact
 
 For any questions, feel free to contact: `hongda.liu@cripac.ia.ac.cn`
+
+`python tools/build_ntu_pkl_from_skeleton.py --skeleton-dir ./data/ntu-single-A1-40/ --output-pkl ./ntu-single-A1-40.pkl --dataset ntu60 --split xview`
+
+`bash tools/dist_train.sh configs/ntu60_xview/j.py 1 --validate --test-last --test-best`
