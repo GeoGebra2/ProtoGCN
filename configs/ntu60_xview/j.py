@@ -1,4 +1,4 @@
-modality = 'j'
+modality = ['j', 'vel', 'acc', 'bvel', 'jav', 'jerk']
 graph = 'nturgb+d'
 work_dir = f'./work_dirs/ntu60_xview_personid/j_fresh'
 
@@ -6,6 +6,8 @@ model = dict(
     type='RecognizerGCN',
     backbone=dict(
         type='ProtoGCN',
+        in_channels=18,
+        use_part_fusion=True,
         num_prototype=400,
         tcn_ms_cfg=[(3, 1), (3, 2), (3, 3), (3, 4), ('max', 3), '1x1'],
         graph_cfg=dict(layout=graph, mode='random', num_filter=8, init_off=.04, init_std=.02)),
@@ -16,7 +18,7 @@ ann_file = './ntu-single-A1-40.pkl'
 train_pipeline = [
     dict(type='PreNormalize3D', align_spine=False),
     dict(type='RandomRot', theta=0.2),
-    dict(type='GenSkeFeat', feats=[modality]),
+    dict(type='GenSkeFeat', feats=modality),
     dict(type='UniformSampleDecode', clip_len=100),
     dict(type='FormatGCNInput'),
     dict(type='Collect', keys=['keypoint', 'label'], meta_keys=[]),
@@ -24,7 +26,7 @@ train_pipeline = [
 ]
 val_pipeline = [
     dict(type='PreNormalize3D', align_spine=False),
-    dict(type='GenSkeFeat', feats=[modality]),
+    dict(type='GenSkeFeat', feats=modality),
     dict(type='UniformSampleDecode', clip_len=100, num_clips=1),
     dict(type='FormatGCNInput'),
     dict(type='Collect', keys=['keypoint', 'label'], meta_keys=[]),
@@ -32,7 +34,7 @@ val_pipeline = [
 ]
 test_pipeline = [
     dict(type='PreNormalize3D', align_spine=False),
-    dict(type='GenSkeFeat', feats=[modality]),
+    dict(type='GenSkeFeat', feats=modality),
     dict(type='UniformSampleDecode', clip_len=100, num_clips=10),
     dict(type='FormatGCNInput'),
     dict(type='Collect', keys=['keypoint', 'label'], meta_keys=[]),

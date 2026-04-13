@@ -64,6 +64,90 @@ class Prototype_Reconstruction_Network(nn.Module):
         return self.dropout(z)
 
 
+class PartAwareFusion(nn.Module):
+
+    def __init__(self, channels, layout='nturgb+d'):
+        super().__init__()
+        self.layout = layout
+        if layout == 'nturgb+d':
+            part_inds = {
+                'upper': [4, 5, 6, 7, 8, 9, 10, 11, 20, 21, 22, 23, 24],
+                'lower': [0, 12, 13, 14, 15, 16, 17, 18, 19],
+                'trunk': [0, 1, 2, 3, 20]
+            }
+        elif layout in ['openpose', 'openpose_new']:
+            part_inds = {
+                'upper': [1, 2, 3, 4, 5, 6, 7],
+                'lower': [8, 9, 10, 11, 12, 13],
+                'trunk': [0, 1, 14, 15, 16, 17]
+            }
+        elif layout in ['coco', 'coco_new']:
+            part_inds = {
+                'upper': [0, 1, 2, 3, 4, 5, 6],
+                'lower': [11, 12, 13, 14, 15, 16],
+                'trunk': [0, 5, 6, 11, 12]
+            }
+        else:
+            raise ValueError(f'Unsupported layout for part fusion: {layout}')
+
+        self.register_buffer('upper_idx', torch.tensor(part_inds['upper'], dtype=torch.long))
+        self.register_buffer('lower_idx', torch.tensor(part_inds['lower'], dtype=torch.long))
+        self.register_buffer('trunk_idx', torch.tensor(part_inds['trunk'], dtype=torch.long))
+
+        self.upper_branch = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=1, bias=False),
+            nn.BatchNorm2d(channels),
+            nn.ReLU(inplace=True))
+        self.lower_branch = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=1, bias=False),
+            nn.BatchNorm2d(channels),
+            nn.ReLU(inplace=True))
+        self.trunk_branch = nn.Sequential(
+            nn.Conv2d(channels, channels, kernel_size=1, bias=False),
+            nn.BatchNorm2d(channels),
+            nn.ReLU(inplace=True))
+
+        self.attn = nn.Sequential(
+            nn.Linear(channels * 3, channels),
+            nn.ReLU(inplace=True),
+            nn.Linear(channels, 3))
+
+    @staticmethod
+    def _pool_part(x):
+        # x: [N*M, C, T, Vp] -> [N*M, C]
+        return x.mean(-1).mean(-1)
+
+    def _part_features(self, x):
+        # x: [N*M, C, T, V]
+        upper = self.upper_branch(x.index_select(-1, self.upper_idx))
+        lower = self.lower_branch(x.index_select(-1, self.lower_idx))
+        trunk = self.trunk_branch(x.index_select(-1, self.trunk_idx))
+        return upper, lower, trunk
+
+    def forward(self, x):
+        # x: [N, M, C, T, V]
+        N, M, C, T, V = x.shape
+        x_nm = x.view(N * M, C, T, V)
+        upper, lower, trunk = self._part_features(x_nm)
+
+        upper_vec = self._pool_part(upper)
+        lower_vec = self._pool_part(lower)
+        trunk_vec = self._pool_part(trunk)
+        gate = torch.softmax(self.attn(torch.cat([upper_vec, lower_vec, trunk_vec], dim=-1)), dim=-1)
+        gate = gate.view(N * M, 3, 1, 1, 1)
+
+        upper_full = torch.zeros_like(x_nm)
+        lower_full = torch.zeros_like(x_nm)
+        trunk_full = torch.zeros_like(x_nm)
+        upper_full.index_copy_(-1, self.upper_idx, upper)
+        lower_full.index_copy_(-1, self.lower_idx, lower)
+        trunk_full.index_copy_(-1, self.trunk_idx, trunk)
+
+        fused = gate[:, 0] * upper_full + gate[:, 1] * lower_full + gate[:, 2] * trunk_full
+        fused = fused.view(N, M, C, T, V)
+        return x + fused
+
+
 @BACKBONES.register_module()
 class ProtoGCN(nn.Module):
 
@@ -84,6 +168,8 @@ class ProtoGCN(nn.Module):
         self.graph = Graph(**graph_cfg)
         A = torch.tensor(self.graph.A, dtype=torch.float32, requires_grad=False)
         self.data_bn_type = data_bn_type
+        self.layout = graph_cfg.get('layout', 'nturgb+d')
+        self.use_part_fusion = kwargs.pop('use_part_fusion', False)
         self.kwargs = kwargs
 
         if data_bn_type == 'MVC':
@@ -138,6 +224,8 @@ class ProtoGCN(nn.Module):
         self.post = nn.Conv2d(out_channels, out_channels, 1)
         self.bn = build_norm_layer(norm_cfg, out_channels)[1]
         self.relu = nn.ReLU()
+        if self.use_part_fusion:
+            self.part_fusion = PartAwareFusion(out_channels, layout=self.layout)
         
         dim = 384   # base_channels * 4
         self.prn = Prototype_Reconstruction_Network(dim, num_prototype)
@@ -163,6 +251,8 @@ class ProtoGCN(nn.Module):
             get_graph.append(gcl_graph)
         
         x = x.reshape((N, M) + x.shape[1:])
+        if self.use_part_fusion:
+            x = self.part_fusion(x)
         c_graph = x.size(2)
         
         graph = get_graph[-1]

@@ -397,13 +397,92 @@ class ToMotion:
         motion = np.zeros_like(data)
 
         assert C in [2, 3]
-        motion[:, :T - 1] = np.diff(data, axis=1)
+        if T > 1:
+            motion[:, :T - 1] = np.diff(data, axis=1)
         if C == 3 and self.dataset in ['openpose', 'coco']:
             score = (data[:, :T - 1, :, 2] + data[:, 1:, :, 2]) / 2
             motion[:, :T - 1, :, 2] = score
 
         results[self.target] = motion
+        return results
 
+
+@PIPELINES.register_module()
+class TemporalDerivative:
+    """Compute n-order temporal derivative with zero-padding at the tail."""
+
+    def __init__(self, order=1, dataset='nturgb+d', source='keypoint', target='motion'):
+        assert order >= 1
+        self.order = order
+        self.dataset = dataset
+        self.source = source
+        self.target = target
+
+    def __call__(self, results):
+        data = results[self.source]
+        M, T, V, C = data.shape
+        deriv = np.zeros_like(data)
+        assert C in [2, 3]
+
+        if T > self.order:
+            deriv[:, :T - self.order] = np.diff(data, n=self.order, axis=1)
+            if C == 3 and self.dataset in ['openpose', 'coco']:
+                score_list = [
+                    data[:, idx:T - self.order + idx, :, 2]
+                    for idx in range(self.order + 1)
+                ]
+                deriv[:, :T - self.order, :, 2] = np.mean(np.stack(score_list, axis=0), axis=0)
+
+        results[self.target] = deriv
+        return results
+
+
+@PIPELINES.register_module()
+class JointToAngle:
+    """Convert joints to normalized bone direction (joint-angle proxy)."""
+
+    def __init__(self, dataset='nturgb+d', source='keypoint', target='ja', eps=1e-4):
+        self.dataset = dataset
+        self.source = source
+        self.target = target
+        self.eps = eps
+        if self.dataset not in ['nturgb+d', 'openpose', 'openpose_new', 'coco', 'coco_new']:
+            raise ValueError(f'The dataset type {self.dataset} is not supported')
+
+        if self.dataset == 'nturgb+d':
+            self.pairs = ((0, 1), (1, 20), (2, 20), (3, 2), (4, 20), (5, 4), (6, 5), (7, 6), (8, 20), (9, 8),
+                          (10, 9), (11, 10), (12, 0), (13, 12), (14, 13), (15, 14), (16, 0), (17, 16), (18, 17),
+                          (19, 18), (21, 22), (20, 20), (22, 7), (23, 24), (24, 11))
+        elif self.dataset == 'openpose':
+            self.pairs = ((0, 1), (1, 1), (2, 1), (3, 2), (4, 3), (5, 1), (6, 5), (7, 6), (8, 2), (9, 8), (10, 9),
+                          (11, 5), (12, 11), (13, 12), (14, 0), (15, 0), (16, 14), (17, 15))
+        elif self.dataset == 'openpose_new':
+            self.pairs = ((0, 1), (1, 1), (2, 1), (3, 2), (4, 3), (5, 1), (6, 5), (7, 6), (8, 18), (9, 8), (10, 9),
+                          (11, 18), (12, 11), (13, 12), (14, 0), (15, 0), (16, 14), (17, 15), (18, 19), (19, 1))
+        elif self.dataset == 'coco':
+            self.pairs = ((0, 0), (1, 0), (2, 0), (3, 1), (4, 2), (5, 0), (6, 0), (7, 5), (8, 6), (9, 7), (10, 8),
+                          (11, 0), (12, 0), (13, 11), (14, 12), (15, 13), (16, 14))
+        elif self.dataset == 'coco_new':
+            self.pairs = ((0, 19), (1, 0), (2, 0), (3, 1), (4, 2), (5, 19), (6, 19), (7, 5), (8, 6), (9, 7), (10, 8),
+                          (11, 17), (12, 17), (13, 11), (14, 12), (15, 13), (16, 14), (17, 18), (18, 19), (19, 19))
+
+    def __call__(self, results):
+        keypoint = results[self.source]
+        M, T, V, C = keypoint.shape
+        bone = np.zeros((M, T, V, C), dtype=np.float32)
+
+        for v1, v2 in self.pairs:
+            bone[..., v1, :] = keypoint[..., v1, :] - keypoint[..., v2, :]
+
+        score_layout = self.dataset in ['openpose', 'openpose_new', 'coco', 'coco_new']
+        vec_dim = 2 if (C == 3 and score_layout) else C
+        norm = np.linalg.norm(bone[..., :vec_dim], axis=-1, keepdims=True)
+        angle = np.zeros_like(bone)
+        angle[..., :vec_dim] = bone[..., :vec_dim] / np.clip(norm, self.eps, None)
+        if vec_dim < C:
+            angle[..., vec_dim:] = bone[..., vec_dim:]
+
+        results[self.target] = angle
         return results
 
 
@@ -429,21 +508,41 @@ class MergeSkeFeat:
 class GenSkeFeat:
     def __init__(self, dataset='nturgb+d', feats=['j'], axis=-1):
         self.dataset = dataset
-        self.feats = feats
+        alias_map = {
+            'velocity': 'vel',
+            'acceleration': 'acc',
+            'bone_velocity': 'bvel',
+            'joint_angle_velocity': 'jav',
+            'motion': 'vel'
+        }
+        self.feats = [alias_map.get(feat, feat) for feat in feats]
         self.axis = axis
         ops = []
-        if 'b' in feats or 'bm' in feats:
+
+        if 'b' in self.feats or 'bm' in self.feats or 'bvel' in self.feats:
             ops.append(JointToBone(dataset=dataset, target='b'))
-        if 'k' in feats or 'km' in feats:
+        if 'k' in self.feats or 'km' in self.feats:
             ops.append(JointToKB(dataset=dataset, target='k'))
         ops.append(Rename({'keypoint': 'j'}))
-        if 'jm' in feats:
+        if 'jm' in self.feats:
             ops.append(ToMotion(dataset=dataset, source='j', target='jm'))
-        if 'bm' in feats:
+        if 'vel' in self.feats:
+            ops.append(TemporalDerivative(order=1, dataset=dataset, source='j', target='vel'))
+        if 'acc' in self.feats:
+            ops.append(TemporalDerivative(order=2, dataset=dataset, source='j', target='acc'))
+        if 'jerk' in self.feats:
+            ops.append(TemporalDerivative(order=3, dataset=dataset, source='j', target='jerk'))
+        if 'bm' in self.feats:
             ops.append(ToMotion(dataset=dataset, source='b', target='bm'))
-        if 'km' in feats:
+        if 'bvel' in self.feats:
+            ops.append(TemporalDerivative(order=1, dataset=dataset, source='b', target='bvel'))
+        if 'km' in self.feats:
             ops.append(ToMotion(dataset=dataset, source='k', target='km'))
-        ops.append(MergeSkeFeat(feat_list=feats, axis=axis))
+        if 'ja' in self.feats or 'jav' in self.feats:
+            ops.append(JointToAngle(dataset=dataset, source='j', target='ja'))
+        if 'jav' in self.feats:
+            ops.append(TemporalDerivative(order=1, dataset=dataset, source='ja', target='jav'))
+        ops.append(MergeSkeFeat(feat_list=self.feats, axis=axis))
         self.ops = Compose(ops)
 
     def __call__(self, results):
