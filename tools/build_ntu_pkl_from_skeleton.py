@@ -154,6 +154,7 @@ def main():
     annotations = []
     sample_metas = []
     failed = []
+    skipped_non_finite = []
 
     for file_path in files:
         sample_id = file_path.stem
@@ -163,6 +164,9 @@ def main():
                 continue
             label = select_label(meta, args.label_source, subject_map)
             keypoint, total_frames = parse_skeleton_file(file_path, num_person=args.num_person)
+            if not np.isfinite(keypoint).all():
+                skipped_non_finite.append(str(file_path))
+                continue
             annotations.append({
                 'frame_dir': sample_id,
                 'label': int(label),
@@ -199,6 +203,10 @@ def main():
     print(f'samples: {len(annotations)}')
     print(f'split keys: {list(split.keys())}')
     print(f'labels: {len(set(x["label"] for x in annotations))}')
+    if len(skipped_non_finite) > 0:
+        print(f'skipped_non_finite: {len(skipped_non_finite)}')
+        for path in skipped_non_finite[:20]:
+            print(f'  {path}')
     if len(failed) > 0:
         print(f'failed: {len(failed)}')
         for path, reason in failed[:20]:

@@ -42,9 +42,9 @@ data = dict(
     videos_per_gpu=16,
     workers_per_gpu=4,
     test_dataloader=dict(videos_per_gpu=1),
-    train=dict(type=dataset_type, ann_file=ann_file, pipeline=train_pipeline, split='xview_train'),
-    val=dict(type=dataset_type, ann_file=ann_file, pipeline=val_pipeline, split='xview_val'),
-    test=dict(type=dataset_type, ann_file=ann_file, pipeline=test_pipeline, split='xview_val'))
+    train=dict(type=dataset_type, ann_file=ann_file, pipeline=train_pipeline, split='xview_train', relabel_by_subject=False),
+    val=dict(type=dataset_type, ann_file=ann_file, pipeline=val_pipeline, split='xview_val', relabel_by_subject=False),
+    test=dict(type=dataset_type, ann_file=ann_file, pipeline=test_pipeline, split='xview_val', relabel_by_subject=False))
 
 # setting: 4 GPU  64  0.1  ->  1 GPU  64/4=16  0.1/4=0.025
 optimizer = dict(type='SGD', lr=0.025, momentum=0.9, weight_decay=0.0005, nesterov=True)
